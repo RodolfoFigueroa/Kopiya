@@ -1,0 +1,58 @@
+<%- include('partials/header') -%>
+
+<% if (temp_token) { %>
+    <script>
+        function copy_to_clipboard() { 
+            navigator.clipboard.writeText("<%= temp_token %>");
+            alert("Copied token to clipboard.");
+        }
+    </script>
+<% } %>
+
+<% if (tokens.length > 0) {%>
+    <div class="mb-4">
+        <h1 class="text-2xl mb-4">Active tokens</h1>
+
+        <table class="m-auto">
+            <tr class="border">
+                <th class="w-5/12 min-w-fit">Type</th>
+                <th class="w-4/12">Data</th>
+                <th>Actions</th>
+            </tr>
+            
+            <% for (let i=0; i<tokens.length; i++) { %>
+                <tr class="border">
+                    <td class="text-center"><%= tokens[i].type %></td>
+                    <td class="text-center">
+                        <% for (const [key, value] of Object.entries(tokens[i].data)) { %>
+                            <p><b><%= key %>:</b> <%= value %></p>
+                        <% } %>
+                    </td>
+                    <td class="text-center">
+                        <form action="/tokens/delete" method="post">
+                            <input type="hidden" name="user_id" value=<%= user_id %>>
+                            <input type="hidden" name="token_type" value=<%= tokens[i].type %>>
+                            <button class="rounded-full w-32 my-2 bg-red-100" type="submit"><b>Delete</b></button>
+                        </form>
+                    </td>
+                </tr>
+            <% } %>
+        </table>
+    </div>
+<% } %>
+
+
+
+<div>
+    <h1 class="text-2xl mb-4">Temporary token</h1>
+    <% if (temp_token) { %>
+        <button class="rounded-full w-28 my-2 bg-orange-100 mx-1" onclick=copy_to_clipboard()><b>Copy to clipboard</b></button>
+    <% } else {%>
+            <form action="/tokens/add" method="post">
+                <input type="hidden" name="user_id" value=<%= user_id %>>
+                <button type="submit" class="rounded-full w-28 my-2 bg-blue-100 mr-1"><b>Generate</b></button>
+            </form>
+            
+    <% } %>
+</div>
+<%- include('partials/footer') -%>

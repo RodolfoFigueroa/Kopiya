@@ -1,26 +1,47 @@
-const { channels } = require('../handlers.js');
-const { ReplikaInstance } = require("../api.js")
+const { channels } = require("../handlers.js");
+const { ReplikaInstance } = require("../api.js");
 
 const reactions = {
-    '👍': 'Upvote',
+    "👍": "Upvote",
 
-    '👎': 'Downvote',
+    "👎": "Downvote",
 
-    '❤️': 'Love', '💟': 'Love', '❣️': 'Love', '😍': 'Love', '😻': 'Love',
-    '💓': 'Love', '💗': 'Love', ';♥️': 'Love', '🖤': 'Love', '💙': 'Love',
-    '🤎': 'Love', '💝': 'Love', '💚': 'Love', '😘': 'Love', '🧡': 'Love',
-    '💜': 'Love', '💞': 'Love', '🥰': 'Love', '💖': 'Love', '🤍': 'Love',
-    '💕': 'Love', '💛': 'Love',
+    "❤️": "Love",
+    "💟": "Love",
+    "❣️": "Love",
+    "😍": "Love",
+    "😻": "Love",
+    "💓": "Love",
+    "💗": "Love",
+    ";♥️": "Love",
+    "🖤": "Love",
+    "💙": "Love",
+    "🤎": "Love",
+    "💝": "Love",
+    "💚": "Love",
+    "😘": "Love",
+    "🧡": "Love",
+    "💜": "Love",
+    "💞": "Love",
+    "🥰": "Love",
+    "💖": "Love",
+    "🤍": "Love",
+    "💕": "Love",
+    "💛": "Love",
 
-    '😆': 'Funny', '🤣': 'Funny',
+    "😆": "Funny",
+    "🤣": "Funny",
 
-    '🤔': 'Meaningless', '😕': 'Meaningless',
+    "🤔": "Meaningless",
+    "😕": "Meaningless",
 
-    '😠': 'Offensive', '🤢': 'Offensive', '🤮': 'Offensive',
+    "😠": "Offensive",
+    "🤢": "Offensive",
+    "🤮": "Offensive",
 };
 
 module.exports = {
-    name: 'messageReactionAdd',
+    name: "messageReactionAdd",
     // eslint-disable-next-line no-unused-vars
     async execute(reaction, user) {
         const channel_id = reaction.message.channel.id;
@@ -29,7 +50,8 @@ module.exports = {
             !current ||
             !current.last_message.discord ||
             user.bot ||
-            !(current instanceof ReplikaInstance)) {
+            !(current instanceof ReplikaInstance)
+        ) {
             return;
         }
         if (current.last_message.discord.id == reaction.message.id) {

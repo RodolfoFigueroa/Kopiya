@@ -1,11 +1,5 @@
-require('dotenv').config();
-const { Pool } = require('pg');
-const red = require('../redis.js');
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-});
+const red = require("../redis/commands.js");
+const pool = require("./pool.js");
 
 async function insert_replika(params) {
     const client = await pool.connect();
@@ -22,103 +16,73 @@ async function insert_replika(params) {
             name,
             avatar
         )
-        VALUES($1, $2, $3, $4, $5, $6, $7, $8)`;
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+    `;
     try {
-        await client.query(
-            query,
-            [
-                params['x-user-id'], params['x-auth-token'], params['x-device-id'], params['x-timestamp-hash'],
-                params['bot_id'], params['chat_id'],
-                params['name'], params['avatar']
-            ],
-        );
+        await client.query(query, [
+            params["x-user-id"],
+            params["x-auth-token"],
+            params["x-device-id"],
+            params["x-timestamp-hash"],
+            params["bot_id"],
+            params["chat_id"],
+            params["name"],
+            params["avatar"],
+        ]);
         return 0;
-    }
-    catch (error) {
+    } catch (error) {
         console.log(error);
         return 1;
-    }
-    finally {
-        client.release();
+    } finally {
+        await client.release();
     }
 }
 
 async function delete_replika(user_id) {
     const client = await pool.connect();
-    const query = 'DELETE FROM settings WHERE user_id = $1';
+    const query = "DELETE FROM settings WHERE user_id = $1";
     try {
         await client.query(query, [user_id]);
         return 0;
-    }
-    catch (error) {
+    } catch (error) {
         console.log(error);
         return 1;
-    }
-    finally {
-        client.release();
+    } finally {
+        await client.release();
     }
 }
 
 async function get_replika(user_id) {
     const client = await pool.connect();
-    const query = 'SELECT * FROM settings WHERE user_id = $1';
+    const query = "SELECT * FROM settings WHERE user_id = $1";
     try {
         res = await client.query(query, [user_id]);
-        return [ 0, res.rows[0] ];
-    }
-    catch (error) {
+        return [0, res.rows[0]];
+    } catch (error) {
         console.log(error);
-        return [ 1, null ];
-    }
-    finally {
-        client.release();
+        return [1, null];
+    } finally {
+        await client.release();
     }
 }
 
-async function list_replikas(guild_id) {
+async function update_name(user_id, name) {
     const client = await pool.connect();
     try {
-        return await client.query(
-            `
-                SELECT * FROM discord 
-                INNER JOIN settings
-                    ON settings.user_id = discord.user_id
-                WHERE guild_id = $1;
-            `, 
-            [ guild_id ]
-        );
-    }
-    catch (error) {
+        await client.query("UPDATE settings SET name = $1 WHERE user_id = $2", [
+            name,
+            user_id,
+        ]);
+    } catch (error) {
         console.log(error);
-        return;
-    }
-    finally {
-        client.release();
+    } finally {
+        await client.release();
     }
 }
-
-async function update_data(user_id) {
-    const client = await pool.connect();
-    const res = await red.get_fields(user_id, ['name', 'avatar']);
-    try {
-        return await client.query(
-            'UPDATE settings SET name = $1, avatar = $2 WHERE user_id = $3',
-            [res[0], res[1], user_id]);
-    }
-    catch (error) {
-        console.log(error);
-        return;
-    }
-    finally {
-        client.release();
-    }
-}
-
 
 module.exports = {
     insert_replika: insert_replika,
     delete_replika: delete_replika,
     get_replika: get_replika,
-    list_replikas: list_replikas,
-    update_data: update_data,
+    update_name: update_name,
 };

@@ -1,4 +1,4 @@
-FROM node:19-alpine
+FROM node:19
 
 WORKDIR /usr/src/app
 
@@ -8,6 +8,7 @@ COPY package-lock.json ./
 # RUN npm ci --only=production
 RUN npm install
 
-COPY . .
+COPY ./src ./src
+COPY ./script/index.js ./script/index.js
 
-CMD ["node", "index.js"]
+CMD ["node", "./script/index.js"]
