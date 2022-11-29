@@ -8,7 +8,10 @@
         "create_tables_dev": "(node -r dotenv/config ./script/create_tables.js)",
         "deploy_commands_dev": "(node -r dotenv/config ./src/sources/discord/deploy_commands.js)"
     },
-    "author": "Rodolfo Figueroa <4rodolfofigueroa2@gmail.com>",
+    "author": {
+        "name": "Rodolfo Figueroa",
+        "email": "4rodolfofigueroa2@gmail.com"
+      },
     "license": "GPL-3.0-or-later",
     "dependencies": {
         "@kopiya/kopiya-common": "^1.0",
@@ -25,5 +28,7 @@
         "dotenv-cli": "^6.0.0",
         "nodemon": "^2.0.20",
         "prettier": "2.8.0"
-    }
+    },
+    "keywords": ["kopiya", "replika"],
+    "repository": "github:RodolfoFigueroa/Kopiya"
 }
