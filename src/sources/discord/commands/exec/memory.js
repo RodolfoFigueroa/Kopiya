@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require("discord.js");
 const { channels } = require("../../handlers.js");
 const { ReplikaInstance } = require("../../api.js");
-const replika = require("../../../../replika.js");
+const replika = require("@kopiya/kopiya-common");
 
 module.exports = {
     async execute(interaction) {

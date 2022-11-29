@@ -32,7 +32,6 @@ async function main() {
     } finally {
         await client.release();
     }
-    console.log("Created base table.");
 }
 
 module.exports = main;

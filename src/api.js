@@ -1,7 +1,7 @@
 const uuid = require("uuid4");
 const WebSocket = require("ws");
 
-const replika = require("./replika");
+const replika = require("@kopiya/kopiya-common");
 const db = require("./database/commands.js");
 const red = require("./redis/commands.js");
 

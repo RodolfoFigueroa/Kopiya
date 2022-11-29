@@ -67,6 +67,10 @@ async function get_replika(user_id) {
 }
 
 async function update_name(user_id, name) {
+    if (!name) {
+        return
+    }
+    
     const client = await pool.connect();
     try {
         await client.query("UPDATE settings SET name = $1 WHERE user_id = $2", [

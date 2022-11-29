@@ -27,7 +27,6 @@ async function main() {
     } finally {
         await client.release();
     }
-    console.log("Created discord table.");
 }
 
 module.exports = main;
