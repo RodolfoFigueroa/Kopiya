@@ -1,6 +1,0 @@
-sources = [
-    "discord"
-]
-
-timeout = 300
-timeout_dialogue = 600
