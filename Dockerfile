@@ -4,6 +4,7 @@ WORKDIR /usr/src/app
 
 COPY ./package.json ./
 COPY ./package-lock.json ./
+
 COPY ./src ./src
 COPY ./script ./script
 COPY ./index.js ./
