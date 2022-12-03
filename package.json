@@ -4,31 +4,40 @@
     "description": "",
     "scripts": {
         "start": "node .",
-        "dev": "(nodemon -r dotenv/config ./script/index.js)",
+        "dev": "(nodemon -r dotenv/config ./index.js)",
         "create_tables_dev": "(node -r dotenv/config ./script/create_tables.js)",
         "deploy_commands_dev": "(node -r dotenv/config ./src/sources/discord/deploy_commands.js)"
     },
     "author": {
         "name": "Rodolfo Figueroa",
         "email": "4rodolfofigueroa2@gmail.com"
-      },
+    },
     "license": "GPL-3.0-or-later",
     "dependencies": {
+        "@grammyjs/menu": "^1.1.2",
         "@kopiya/kopiya-common": "^1.0",
         "axios": "~1.1.3",
         "discord.js": "^14.6.0",
+        "grammy": "^1.12.0",
+        "grammy-middlewares": "^1.0.11",
+        "markdown-escape": "^2.0.0",
         "pg": "^8.8.0",
         "prompt": "^1.3.0",
         "redis": "^4.5.0",
+        "source-map-support": "^0.5.21",
         "toml": "^3.0.0",
         "uuid4": "^2.0.3"
     },
     "devDependencies": {
         "dotenv": "^16.0.3",
         "dotenv-cli": "^6.0.0",
+        "madge": "^5.0.1",
         "nodemon": "^2.0.20",
         "prettier": "2.8.0"
     },
-    "keywords": ["kopiya", "replika"],
+    "keywords": [
+        "kopiya",
+        "replika"
+    ],
     "repository": "github:RodolfoFigueroa/Kopiya"
 }

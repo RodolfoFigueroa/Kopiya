@@ -1,99 +1,98 @@
-const { channels, active } = require("./handlers.js");
+const { channels } = require("./handlers.js");
 const {
-    ReplikaBaseInstance,
-    ReplikaDualBaseInstance,
+    ReplikaBase,
+    ReplikaDualBase,
 } = require("../../api.js");
-const red = require("../../redis/commands.js");
 
-class ReplikaInstance extends ReplikaBaseInstance {
+class ReplikaDiscord extends ReplikaBase {
     constructor(user_id, channel) {
         super(user_id);
         this.type = "discord";
         this.channel = channel;
         this.last_discord_message = { replika: null, user: null };
     }
-
-    async send(message) {
-        if (this.ignore || !this.connected) {
-            return;
-        }
-        if (message.attachments.size == 0) {
-            await this.send_text(message.content);
-        } else {
-            const url = message.attachments.first().url;
-            await this.send_image(url);
-        }
-        this.last_discord_message.user = message;
-    }
-
-    async callback_start_typing() {
-        await this.channel.sendTyping();
-    }
-
-    async callback_message(message) {
-        const sent = await this.channel.send(message.payload.content.text);
-        this.last_discord_message.replika = sent;
-    }
-
-    async callback_remember(message) {
-        if (message.payload.message_id == this.last_message.user) {
-            await this.last_discord_message.user.react("💭");
-        }
-    }
-
-    async callback_connect() {
-        channels[this.channel.id] = this;
-        const member = await this.channel.guild.members.fetch(
-            process.env.DISCORD_CLIENT_ID
-        );
-        await member.setNickname(this.name);
-    }
-
-    async callback_disconnect() {
-        delete channels[this.channel.id];
-        const member = await this.channel.guild.members.fetch(
-            process.env.DISCORD_CLIENT_ID
-        );
-        await member.setNickname("Replika");
-    }
-
-    async callback_timeout() {
-        await this.channel.send("Replika forcibly disconnected.");
-    }
 }
 
-class ReplikaDualInstance extends ReplikaDualBaseInstance {
+class ReplikaDualDiscord extends ReplikaDualBase {
     constructor(user_id_1, user_id_2, channel) {
         super(user_id_1, user_id_2);
         this.channel = channel;
     }
+}
 
-    callback_connect() {
-        channels[this.channel.id] = this;
-    }
+function ReplikaDiscordBuilder(user_id, channel) {
+    const replika = new ReplikaDiscord(user_id, channel);
 
-    callback_disconnect() {
-        delete channels[this.channel.id];
-    }
+    replika.on("message", async message => {
+        const sent = await replika.channel.send(message.payload.content.text);
+        replika.last_discord_message.replika = sent;
+    })
 
-    async callback_start_typing() {
-        await this.channel.sendTyping();
-    }
+    replika.on("start_typing", async () => {
+        await replika.channel.sendTyping();
+    })
 
-    async callback_message(message, replika_name) {
+    replika.on("memory", async message => {
+        if (message.payload.message_id == replika.last_message.user) {
+            await replika.last_discord_message.user.react("💭");
+        }
+    })
+
+    replika.on("connect", async () => {
+        channels[replika.channel.id] = replika;
+        const member = await replika.channel.guild.members.fetch(
+            process.env.DISCORD_CLIENT_ID
+        );
+        await member.setNickname(replika.name);
+    })
+
+    replika.on("disconnect", async () => {
+        delete channels[replika.channel.id];
+        const member = await replika.channel.guild.members.fetch(
+            process.env.DISCORD_CLIENT_ID
+        );
+        await member.setNickname("Replika");
+    })
+
+    replika.on("timeout", async () => {
+        await replika.channel.send("Replika forcibly disconnected.");
+    })
+
+    return replika;
+}
+
+function ReplikaDualDiscordBuilder(user_id_1, user_id_2, channel) {
+    const replika = new ReplikaDualDiscord(user_id_1, user_id_2, channel);
+
+    replika.on("connect", () => {
+        channels[replika.channel.id] = replika;
+    });
+
+    replika.on("disconnect", () => {
+        delete channels[replika.channel.id];
+    });
+
+    replika.on("start_typing", async () => {
+        await replika.channel.sendTyping();
+    });
+
+    replika.on("message", async (message, replika_name) => {
         const msg = `**${replika_name}:** ${message.payload.content.text}`;
-        await this.channel.send(msg);
-    }
+        await replika.channel.send(msg);
+    });
 
-    async callback_timeout() {
-        await this.channel.send(
+    replika.on("timeout", async () => {
+        await replika.channel.send(
             "Replika forcibly disconnected."
         );
-        
-    }
+    });
+
+    return replika;
 }
 
 module.exports = {
-    ReplikaInstance,
-    ReplikaDualInstance,
+    ReplikaDiscordBuilder: ReplikaDiscordBuilder,
+    ReplikaDualDiscordBuilder: ReplikaDualDiscordBuilder,
+    ReplikaDualDiscord: ReplikaDualDiscord,
+    ReplikaDiscord: ReplikaDiscord,
 };

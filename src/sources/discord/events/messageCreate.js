@@ -1,5 +1,5 @@
 const { channels } = require("../handlers.js");
-const { ReplikaInstance } = require("../api.js");
+const { ReplikaDiscord } = require("../api.js");
 
 module.exports = {
     name: "messageCreate",
@@ -9,8 +9,14 @@ module.exports = {
         if (!current) {
             return;
         }
-        if (current instanceof ReplikaInstance && !message.author.bot) {
-            await current.send(message);
+        if (current instanceof ReplikaDiscord && !message.author.bot) {
+            if (message.attachments.size == 0) {
+                await current.send_text(message.content);
+            } else {
+                const url = message.attachments.first().url;
+                await current.send_image(url);
+            }
+            current.last_discord_message.user = message;
         }
     },
 };

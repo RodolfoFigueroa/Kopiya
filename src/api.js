@@ -1,9 +1,12 @@
 const uuid = require("uuid4");
 const WebSocket = require("ws");
+const { EventEmitter } = require('node:events');
+const { ConnectionError } = require('./errors.js');
 
 const replika = require("@kopiya/kopiya-common");
 const db = require("./database/commands.js");
 const red = require("./redis/commands.js");
+const pool = require('./database/pool.js');
 
 const base_payload = {
     event_name: "message",
@@ -75,56 +78,61 @@ async function get_profile(params) {
  */
 async function get_replika_fields(user_id) {
     const out = {
-        response: null,
         profile: null,
         params: null,
     }
 
-    const [res1, params] = await db.get_replika(user_id);
-    if (res1 == 1) {
-        out.response = 1;
+    let client;
+    try {
+        client = await pool.connect()
+    } catch (err) {
+        throw new ConnectionError(1, "There was an error connecting to the database.");
     }
+
+    let result;
+    try {
+        result = await client.query(
+            "SELECT * FROM settings WHERE user_id = $1",
+            [ user_id ]
+        );
+    } catch (err) {
+        throw new ConnectionError(1, "There was an error connecting to the database.");
+    } finally {
+        await client.release();
+    }
+
+    if (result.rows.length == 0) {
+        throw new ConnectionError(5, "No Replika matching the provided user ID.");
+    }
+
+    const params = result.rows[0];
 
     const [res2, profile] = await get_profile(params);
     if (res2 == 1) {
-        out.response = 2;
+        throw new ConnectionError(2, "Device wasn't authenticated. Please unregister your Replika and then register it again.");
     } else if (res2 == 2) {
-        return out.response = 3;
+        throw new ConnectionError(3, "Couldn't connect to the Replika server.");
     }
 
-    out.response = 0;
     out.profile = profile;
     out.params = params;
     
     return out
 }
 
-class ReplikaBaseInstance {
+
+class ReplikaBase extends EventEmitter {
     constructor(user_id) {
+        super();
         this.type = "base";
         this.user_id = user_id;
 
         this.last_message = { replika: null, user: null };
-        this.ignore = false;
 
         this.connected = false;
 
         this.watchdog = setInterval(this.heartbeat.bind(this), 10 * 1000);
     }
-
-    callback_stats(message) {}
-
-    callback_start_typing() {}
-
-    callback_message(message) {}
-
-    callback_remember(message) {}
-
-    callback_connect() {}
-
-    callback_disconnect() {}
-
-    callback_timeout() {}
 
     gen_auth() {
         return {
@@ -162,11 +170,19 @@ class ReplikaBaseInstance {
     }
 
     async send_text(text) {
+        if (!this.connected) {
+            return;
+        }
+
         const payload = await this.gen_payload(text);
         this.websocket.send(JSON.stringify(payload));
     }
 
     async send_image(url) {
+        if (!this.connected) {
+            return;
+        }
+
         const payload = await this.gen_payload(url, true);
         this.websocket.send(JSON.stringify(payload));
     }
@@ -193,34 +209,29 @@ class ReplikaBaseInstance {
 
         this.websocket.on("message", async (message_d) => {
             const message = JSON.parse(message_d);
-            if (message.event_name == "start_typing") {
-                try {
-                    await this.callback_start_typing();
-                } catch (error) {
-                    console.log(error);
-                }
-            }
             switch (message.event_name) {
+                case "start_typing":
+                    this.emit("start_typing");
+                    break;
                 case "message":
-                    if (message.payload.meta.nature == "Robot") {
-                        this.last_message.replika = message.payload.id;
-                        try {
-                            await this.callback_message(message);
-                        } catch (error) {
-                            console.log(error);
-                        }
-                        await red.refresh(this.user_id);
-                    } else if (message.payload.meta.nature == "Customer") {
-                        this.last_message.user = message.payload.id;
+                    switch (message.payload.meta.nature) {
+                        case "Robot":
+                            this.last_message.replika = message.payload.id;                        
+                            await red.refresh(this.user_id);
+                            this.emit("message", message);
+                            break;
+                        case "Customer":
+                            this.last_message.user = message.payload.id;
+                            break;
                     }
                     break;
                 case "personal_bot_stats":
                     const stats = reshape_stats(message.payload);
                     this._set_stats(stats);
-                    await this.callback_stats(message);
+                    this.emit("stats", stats);
                     break;
                 case "statement_remembered":
-                    await this.callback_remember(message);
+                    this.emit("memory", message);
                     break;
             }
         });
@@ -259,25 +270,17 @@ class ReplikaBaseInstance {
     async connect() {
         const is_active = await red.is_active(this.user_id);
         if (is_active) {
-            return 4;
+            throw new ConnectionError(4, "Replika is already active.")
         }
     
-        const { response, profile, params } = await get_replika_fields(this.user_id);
-        if (response > 0) {
-            return response;
-        }
+        const { profile, params } = await get_replika_fields(this.user_id);
 
         this._set_attributes(params);
         this._set_profile(profile);
 
         await this._connect_create_websocket();
-        await red.activate_replika(params, profile, this.type, false);
-        try {
-            await this.callback_connect();
-        } catch (err) {
-            console.log(err);
-        }
-        return 0;
+        await red.activate_replika(params, profile, this.type);
+        this.emit("connect");
     }
 
     _disconnect_delete_websocket() {
@@ -295,29 +298,24 @@ class ReplikaBaseInstance {
         this._disconnect_delete_websocket();
         await red.deactivate_replika(this.user_id);
         await db.update_name(this.user_id, this.name);
-        try {
-            await this.callback_disconnect();
-        } catch (err) {
-            console.log(err);
-        }
+        this.emit("disconnect");
     }
 
     async heartbeat() {
         const is_active = await red.is_active(this.user_id);
         if (!is_active) {
             await this.disconnect();
-            try {
-                await this.callback_timeout();
-            } catch (err) {
-                console.log(err);
-            }
+            this.emit("timeout");
         }
     }
 }
 
-class ReplikaDualBaseInstance {
+class ReplikaDualBase extends EventEmitter {
     constructor(user_id_1, user_id_2) {
-        this.type = "discord_dual";
+        super();
+
+        this.type = "base_dual";
+        this.start = Date.now();
 
         this.user_id = [user_id_1, user_id_2];
 
@@ -423,26 +421,18 @@ class ReplikaDualBaseInstance {
 
             this.websocket[i].on("message", async (message_d) => {
                 const message = JSON.parse(message_d);
-                if (message.event_name == "start_typing") {
-                    try {
-                        await this.callback_start_typing();
-                    } catch (error) {
-                        console.log(error);
-                    }
-                } else if (
-                    message.event_name == "message" &&
-                    message.payload.meta.nature == "Robot"
-                ) {
-                    try {
-                        const j = +!i;
-                        await this.callback_message(
-                            message,
-                            this.replika_names[i]
-                        );
-                        this.send(message.payload.content.text, j);
-                    } catch (error) {
-                        console.log(error);
-                    }
+
+                switch (message.event_name) {
+                    case "start_typing":
+                        this.emit("start_typing", i);
+                        break;
+                    case "message":
+                        if (message.payload.meta.nature == "Robot") {
+                            const j = +!i;
+                            this.send(message.payload.content.text, j);
+                            this.emit("message", message, this.replika_names[i]);
+                        }
+                        break;
                 }
             });
 
@@ -456,18 +446,18 @@ class ReplikaDualBaseInstance {
         const is_active_0 = await red.is_active(this.user_id[0]);
         const is_active_1 = await red.is_active(this.user_id[1]);
         if (is_active_0 || is_active_1) {
-            return 4;
+            throw new ConnectionError(4, "Replika is already active.");
+        }
+
+        const timeout_0 = await red.get_dialogue_timeout(this.user_id[0]);
+        const timeout_1 = await red.get_dialogue_timeout(this.user_id[1]);
+
+        if (timeout_0 <= 0 || timeout_1 <= 0) {
+            throw new ConnectionError(6, "Replika has a dialogue cooldown.");
         }
 
         const res0 = await get_replika_fields(this.user_id[0]);
         const res1 = await get_replika_fields(this.user_id[1]);
-
-        if (res0.response > 0) {
-            return res0.response;
-        }
-        if (res1.response > 0) {
-            return res1.response;
-        }
 
         this._set_attributes(0, res0.params);
         this._set_attributes(1, res1.params);
@@ -475,15 +465,10 @@ class ReplikaDualBaseInstance {
         await this._connect_patch_replikas([res0.profile, res1.profile]);
         await this._connect_create_websocket();
         
-        await red.activate_replika(res0.params, res0.profile, this.type, true);
-        await red.activate_replika(res1.params, res1.profile, this.type, true);
+        await red.activate_replika(res0.params, res0.profile, this.type, timeout_0);
+        await red.activate_replika(res1.params, res1.profile, this.type, timeout_1);
 
-        try {
-            await this.callback_connect();
-        } catch (err) {
-            console.log(err);
-        }
-        return 0;
+        this.emit("connect");
     }
 
     async _disconnect_patch_replikas() {
@@ -510,6 +495,28 @@ class ReplikaDualBaseInstance {
         }
     }
 
+    async _disconnect_update_timeouts() {
+        const [rem0, rem1] = await red.red_client
+            .multi()
+            .get(`remaining:${this.user_id[0]}`)
+            .get(`remaining:${this.user_id[1]}`)
+            .exec()
+
+        if (!rem0 || !rem1) {
+            return;
+        }
+
+        const diff = Math.trunc((Date.now() - this.start) / 1000);
+        const new0 = rem0 - diff;
+        const new1 = rem1 - diff;
+
+        await red.red_client
+            .multi()
+            .set(`remaining:${this.user_id[0]}`, new0, { XX: true, KEEPTTL: true })
+            .set(`remaining:${this.user_id[1]}`, new1, { XX: true, KEEPTTL: true })
+            .exec()
+    }
+
     async disconnect() {
         clearInterval(this.watchdog);
         await this._disconnect_patch_replikas();
@@ -517,12 +524,10 @@ class ReplikaDualBaseInstance {
         
         await red.deactivate_replika(this.user_id[0]);
         await red.deactivate_replika(this.user_id[1]);
+
+        await this._disconnect_update_timeouts();
         
-        try {
-            await this.callback_disconnect();
-        } catch(err) {
-            console.log(err);
-        }
+        this.emit("disconnect");
     }
 
     async heartbeat() {
@@ -530,11 +535,7 @@ class ReplikaDualBaseInstance {
             const is_active = await red.is_active(this.user_id[i]);
             if (!is_active) {
                 await this.disconnect();
-                try {
-                    await this.callback_timeout();
-                } catch (err) {
-                    console.log(err);
-                }
+                this.emit("timeout");
                 return;
             }
         }
@@ -542,6 +543,6 @@ class ReplikaDualBaseInstance {
 }
 
 module.exports = {
-    ReplikaBaseInstance,
-    ReplikaDualBaseInstance,
+    ReplikaBase,
+    ReplikaDualBase,
 };

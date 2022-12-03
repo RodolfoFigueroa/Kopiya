@@ -52,20 +52,6 @@ async function delete_replika(user_id) {
     }
 }
 
-async function get_replika(user_id) {
-    const client = await pool.connect();
-    const query = "SELECT * FROM settings WHERE user_id = $1";
-    try {
-        res = await client.query(query, [user_id]);
-        return [0, res.rows[0]];
-    } catch (error) {
-        console.log(error);
-        return [1, null];
-    } finally {
-        await client.release();
-    }
-}
-
 async function update_name(user_id, name) {
     if (!name) {
         return
@@ -87,6 +73,5 @@ async function update_name(user_id, name) {
 module.exports = {
     insert_replika: insert_replika,
     delete_replika: delete_replika,
-    get_replika: get_replika,
     update_name: update_name,
 };

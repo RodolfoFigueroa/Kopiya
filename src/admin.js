@@ -1,4 +1,5 @@
 const red_client = require('./redis/client.js');
+const config = require("./config.js");
 
 async function consume_token(token) {
     const user_id = await red_client.getDel(`token:${token}`);
@@ -6,6 +7,7 @@ async function consume_token(token) {
     return user_id;
 }
 
+
 module.exports = {
-    consume_token: consume_token
+    consume_token: consume_token,
 }

@@ -7,10 +7,10 @@ function array_equals(a, b) {
 function get_commands() {
     const commands_exec = fs
         .readdirSync("./src/sources/discord/commands/exec")
-        .filter((file) => file.endsWith(".js"));
+        .filter(file => file.endsWith(".js"));
     const commands_data = fs
         .readdirSync("./src/sources/discord/commands/data")
-        .filter((file) => file.endsWith(".js"));
+        .filter(file => file.endsWith(".js"));
 
     if (!array_equals(commands_exec, commands_data)) {
         throw new Error(

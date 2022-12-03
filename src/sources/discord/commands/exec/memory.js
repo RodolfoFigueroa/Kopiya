@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require("discord.js");
 const { channels } = require("../../handlers.js");
-const { ReplikaInstance } = require("../../api.js");
+const { ReplikaDiscord } = require("../../api.js");
 const replika = require("@kopiya/kopiya-common");
 
 module.exports = {
@@ -10,7 +10,7 @@ module.exports = {
             await interaction.reply("Channel isn't in use");
             return;
         }
-        if (!(current instanceof ReplikaInstance)) {
+        if (!(current instanceof ReplikaDiscord)) {
             await interaction.reply("Command not available in dialogue mode.");
             return;
         }

@@ -1,5 +1,5 @@
 const { channels } = require("../handlers.js");
-const { ReplikaInstance } = require("../api.js");
+const { ReplikaDiscord } = require("../api.js");
 
 const reactions = {
     "👍": "Upvote",
@@ -50,7 +50,7 @@ module.exports = {
             !current ||
             !current.last_message.discord ||
             user.bot ||
-            !(current instanceof ReplikaInstance)
+            !(current instanceof ReplikaDiscord)
         ) {
             return;
         }

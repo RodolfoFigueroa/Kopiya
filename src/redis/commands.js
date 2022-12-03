@@ -1,15 +1,30 @@
 const red_client = require("./client.js");
 const config = require('../config.js');
 
-async function activate_replika(params, profile, type, dialogue) {
-    let timeout;
-    if (dialogue) {
-        timeout = config.timeout_dialogue;
+async function get_dialogue_timeout(user_id) {
+    const exists = await red_client.exists(`remaining:${user_id}`);
+    if (!exists) {
+        await red_client.set(
+            `remaining:${user_id}`,
+            config.timeout_dialogue,
+            {
+                EX: config.cooldown_dialogue
+            }
+        )
     }
-    else {
-        timeout = config.timeout;
+    const timeout = await red_client.get(`remaining:${user_id}`);
+    return timeout;
+}
+
+
+async function activate_replika(params, profile, type, timeout=null) {
+    let set_timeout;
+    if (timeout) {
+        set_timeout = timeout;
+    } else {
+        set_timeout = config.timeout;
     }
-    
+
     const key = `user:${params.user_id}`;
     await red_client
         .multi()
@@ -23,7 +38,7 @@ async function activate_replika(params, profile, type, dialogue) {
             level: profile.level,
             type: type
         })
-        .expire(key, timeout)
+        .expire(key, set_timeout)
         .exec();
 }
 
@@ -50,5 +65,6 @@ module.exports = {
     deactivate_replika: deactivate_replika,
     is_active: is_active,
     refresh: refresh,
+    get_dialogue_timeout: get_dialogue_timeout,
     red_client: red_client,
 };
