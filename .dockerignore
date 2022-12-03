@@ -1,4 +1,12 @@
+.github
+.git
+Dockerfile
+.dockerignore
 node_modules
-.prettierignore
+.env
 .gitignore
-*.env
+.prettierignore
+.prettierrc.json
+config.toml
+LICENSE
+README.md
