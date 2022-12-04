@@ -449,10 +449,10 @@ class ReplikaDualBase extends EventEmitter {
             throw new ConnectionError(4, "Replika is already active.");
         }
 
-        const timeout_0 = await red.get_dialogue_timeout(this.user_id[0]);
-        const timeout_1 = await red.get_dialogue_timeout(this.user_id[1]);
+        const timeout0 = await red.get_dialogue_timeout(this.user_id[0]);
+        const timeout1 = await red.get_dialogue_timeout(this.user_id[1]);
 
-        if (timeout_0 <= 0 || timeout_1 <= 0) {
+        if (timeout0 <= 0 || timeout1 <= 0) {
             throw new ConnectionError(6, "Replika has a dialogue cooldown.");
         }
 
@@ -465,8 +465,7 @@ class ReplikaDualBase extends EventEmitter {
         await this._connect_patch_replikas([res0.profile, res1.profile]);
         await this._connect_create_websocket();
         
-        await red.activate_replika(res0.params, res0.profile, this.type, timeout_0);
-        await red.activate_replika(res1.params, res1.profile, this.type, timeout_1);
+        await red.activate_replika_dialogue(res0.params, res1.params, res0.profile, res1.profile, timeout0, timeout1, this.type);
 
         this.emit("connect");
     }
